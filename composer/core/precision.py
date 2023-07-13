@@ -9,7 +9,7 @@ import textwrap
 from typing import Any, Dict, Generator, Optional, Union
 
 import torch
-
+import intel_extension_for_pytorch
 from composer.utils import StringEnum
 
 try:
@@ -26,9 +26,9 @@ class Precision(StringEnum):
 
     Attributes:
         FP32: Use 32-bit floating-point precision. Compatible with CPUs and GPUs.
-        AMP_FP16: Use :mod:`torch.cuda.amp` with 16-bit floating-point precision. Only compatible
+        AMP_FP16: Use :mod:`torch.xpu.amp` with 16-bit floating-point precision. Only compatible
             with GPUs.
-        AMP_BF16: Use :mod:`torch.cuda.amp` with 16-bit BFloat precision.
+        AMP_BF16: Use :mod:`torch.xpu.amp` with 16-bit BFloat precision.
         AMP_FP8: Use :mod:`transformer_engine.pytorch.fp8_autocast` with 8-bit FP8 precison.
     """
     FP32 = 'fp32'
@@ -49,25 +49,25 @@ def get_precision_context(precision: Union[str, Precision],
     """
     precision = Precision(precision)
     if precision == Precision.FP32:
-        if torch.cuda.is_available():
-            with torch.cuda.amp.autocast(False):
+        if torch.xpu.is_available():
+            with torch.xpu.amp.autocast(False):
                 yield
         else:
-            # Yield here to avoid warnings about cuda not being available
+            # Yield here to avoid warnings about cuda/xpu not being available
             yield
     elif precision == Precision.AMP_FP16:
         # Retain compatibility with PyTorch < 1.10
-        with torch.cuda.amp.autocast(True):
+        with torch.xpu.amp.autocast(True):
             yield
     elif precision == Precision.AMP_BF16:
-        if torch.cuda.is_available():
-            with torch.cuda.amp.autocast(enabled=True, dtype=torch.bfloat16):
+        if torch.xpu.is_available():
+            with torch.xpu.amp.autocast(enabled=True, dtype=torch.bfloat16):
                 yield
         else:
             os.environ['XLA_USE_BF16'] = '1'
             yield
     elif precision == Precision.AMP_FP8:
-        if te_installed and torch.cuda.get_device_capability()[0] > 8:
+        if te_installed and torch.xpu.get_device_capability()[0] > 8:
             from transformer_engine.common.recipe import DelayedScaling, Format
 
             if precision_config is None:

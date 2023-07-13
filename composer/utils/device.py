@@ -25,15 +25,24 @@ def get_device(device: Optional[Union[str, 'Device']]) -> 'Device':
             Device. If no argument is passed, returns :class:`.DeviceGPU` if available,
             or :class:`.DeviceCPU` if no GPU is available.
     """
-    from composer.devices import DeviceCPU, DeviceGPU, DeviceMPS, DeviceTPU
+    from composer.devices import DeviceCPU, DeviceGPU, DeviceMPS, DeviceTPU, DeviceXPU
 
     if not device:
-        device = DeviceGPU() if torch.cuda.is_available() else DeviceCPU()
+        # device = DeviceGPU() if torch.cuda.is_available() else DeviceCPU()
+        if torch.cuda.is_available():
+            device = DeviceGPU()
+        elif torch.xpu.is_available():
+            device = DeviceXPU()
+        else:
+            DeviceCPU()
+
     elif isinstance(device, str):
         if device.lower() == 'cpu':
             device = DeviceCPU()
         elif device.lower() == 'gpu':
             device = DeviceGPU()
+        elif device.lower() == 'xpu':
+            device = DeviceXPU()
         elif device.lower() == 'mps':
             device = DeviceMPS()
         elif device.lower() == 'tpu':
